@@ -1,20 +1,25 @@
 package com.plc;
 
+import com.plc.config.ExcelConfig;
 import com.plc.constant.Constant;
 import com.plc.util.ExcelUtil;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.*;
+import java.net.URLEncoder;
 import java.util.*;
 
 public class Excel<T> {
 
-    public static <T> List<T> readExcel(String excelFileName, InputStream inputStream, Class<T> clazz) throws Exception {
+    public static <T> List<T> readExcelToList(String excelFileName, InputStream inputStream, Class<T> clazz) throws Exception {
         //读取classpath下的json文件
-        Map config = ExcelUtil.getExcelConfig(excelFileName);
-        int startRowNo = Integer.parseInt(config.get(Constant.STARTROW).toString());
-        int titleRowNo = Integer.parseInt(config.get(Constant.TITLEROW).toString());
+        ExcelConfig config = ExcelUtil.getExcelConfig(excelFileName);
+        int startRowNo = config.getReadStartRow();
+        int titleRowNo = config.getReadTitleRow();
         //存放表头列
         Map<Integer, Object> titleMap = new HashMap<>();
         //返回的数据集合
@@ -66,7 +71,32 @@ public class Excel<T> {
                 }
             }
         }
+        workbook.close();
         return lists;
+    }
+
+    public static <T> void exportExcel(HttpServletResponse response, String fileName, Map<String, Map<Class, List>> data) throws Exception {
+        // 告诉浏览器用什么软件可以打开此文件
+        response.setHeader("content-Type", "application/vnd.ms-excel");
+        // 下载文件的默认名称
+        response.setHeader("Content-Disposition", "attachment;filename="+ URLEncoder.encode(fileName, "utf-8"));
+        exportExcel(data, response.getOutputStream());
+    }
+
+    public static <T> void exportExcel(Map<String, Map<Class, List>> data, OutputStream out) throws Exception {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        try {
+            for (String key : data.keySet()) {
+                String sheetName = key;
+                XSSFSheet sheet = wb.createSheet(sheetName);
+                for (Class clazz : data.get(key).keySet()) {
+                    ExcelUtil.writeExcel(wb, sheet, data.get(key).get(clazz),clazz);
+                }
+            }
+            wb.write(out);
+        } finally {
+            wb.close();
+        }
     }
 
 

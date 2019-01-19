@@ -1,22 +1,28 @@
 package com.plc.util;
 
 import com.alibaba.fastjson.JSON;
-import com.plc.annotation.ExcelTitle;
+import com.plc.annotation.ExcelField;
 import com.plc.config.ExcelConfig;
+import com.plc.constant.Constant;
+import com.plc.model.MergeColumn;
 import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFDataFormat;
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DateUtil;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
 
+import java.beans.PropertyDescriptor;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -26,47 +32,31 @@ import java.util.*;
  * Created by Administrator on 2018/12/30.
  */
 public class ExcelUtil {
-    /**
-     * 通过文件名读取文件内容
-     * @param fileName
-     * @return
-     * @throws IOException
-     */
-    public static Map<String,Object> readFileByFileName(String fileName) throws IOException {
+
+    public static ExcelConfig getExcelConfig(String excelFileName) throws IOException{
         ClassLoader classLoader = ExcelUtil.class.getClassLoader();
         /**
          getResource()方法会去classpath下找这个文件，获取到url resource, 得到这个资源后，调用url.getFile获取到 文件 的绝对路径
          */
-        URL url = classLoader.getResource(fileName);
+        URL url = classLoader.getResource(Constant.FILENAME);
+        ExcelConfig excelConfig = new ExcelConfig();
         if(null != url){
             File file = new File(url.getFile());
             String content= FileUtils.readFileToString(file,"UTF-8");
             Map maps = (Map) JSON.parse(content);
-            return maps;
-        }
-        /**
-         * url.getFile() 得到这个文件的绝对路径
-         */
-        //此处有问题，如果没有找到配置文件应读取默认配置参数
-        return null;
-    }
-
-    public static Map getExcelConfig(String excelFileName) throws IOException{
-        Map params = readFileByFileName(ExcelConfig.FILENAME);
-        if(null == params){
-            params = new HashMap();
-            params.put("startRow",ExcelConfig.STARTROW);
-            params.put("titleRow",ExcelConfig.TITLEROW);
-            return params;
-        }else{
-            Map excelConfig = (Map) params.get(excelFileName);
-            if(null == excelConfig){
-                excelConfig = new HashMap();
-                excelConfig.put("startRow",ExcelConfig.STARTROW);
-                excelConfig.put("titleRow",ExcelConfig.TITLEROW);
+            if(null != maps){
+                Map property = (Map) maps.get(excelFileName);
+                if(null != property){
+                    if(property.get("readStartRow") != null){
+                        excelConfig.setReadStartRow(Integer.parseInt(property.get("readStartRow").toString()));
+                    }
+                    if(property.get("readTitleRow") != null){
+                        excelConfig.setReadTitleRow(Integer.parseInt(property.get("readTitleRow").toString()));
+                    }
+                }
             }
-            return excelConfig;
         }
+        return excelConfig;
     }
 
 
@@ -269,9 +259,9 @@ public class ExcelUtil {
         Field[] declaredFields = c.getDeclaredFields();
         Field field = null;
         for (Field f : declaredFields) {
-            ExcelTitle excelTitle = f.getAnnotation(ExcelTitle.class);
-            if (excelTitle != null) {
-                String[] columnName = excelTitle.value();
+            ExcelField excelField = f.getAnnotation(ExcelField.class);
+            if (excelField != null) {
+                String[] columnName = excelField.columnName();
                 for (int i = 0; i < columnName.length; i++){
                     if (columnName[i].equals(value)) {
                         field = f;
@@ -305,5 +295,218 @@ public class ExcelUtil {
             }
         }
         return false;
+    }
+
+    //-------------------------------导出---------------------------------
+
+    public static <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz) throws Exception {
+
+        int rowIndex = 0;
+        //获取排序后的字段
+        List<Field> fieldList = getFieldListBySort(clazz);
+        rowIndex = writeTitlesToExcel(wb, sheet, fieldList);
+        writeRowsToExcel(wb, sheet, data,fieldList,clazz,rowIndex);
+        autoSizeColumns(sheet, data.size() + 1);
+
+    }
+
+    //获取排序后的字段
+    private static <T> List<Field> getFieldListBySort(Class<T> classz) throws NoSuchFieldException{
+        List<Field> fieldList = new ArrayList<>();
+        Field[] fields = classz.getDeclaredFields();
+        AccessibleObject.setAccessible(fields, true);
+        for (int i = 0; i <fields.length ; i++) {
+            for (int j = i+1; j <fields.length ; j++) {
+                ExcelField column_i = fields[i].getAnnotation(ExcelField.class); //获取指定类型注解
+                ExcelField column_j = fields[j].getAnnotation(ExcelField.class); //获取指定类型注解
+                if(column_i != null && column_j != null){
+                    if (column_i.order() > column_j.order()){
+                        Field temp = fields[i];
+                        fields[i] = fields[j];
+                        fields[j] = temp;
+                    }
+                }
+            }
+        }
+        for (int i = 0; i <fields.length ; i++) {
+            if(fields[i].getAnnotation(ExcelField.class) != null ){
+                fieldList.add(fields[i]);
+            }
+        }
+        return fieldList;
+    }
+
+    /**
+     * 写标题
+     * @param wb
+     * @param sheet
+     * @param fieldList
+     * @return
+     */
+    private static int writeTitlesToExcel(XSSFWorkbook wb, Sheet sheet, List<Field> fieldList) {
+        int rowIndex = 0;
+        int colIndex = 0;
+
+        Font titleFont = wb.createFont();
+        titleFont.setFontName("simsun");
+        titleFont.setBold(true);
+        // titleFont.setFontHeightInPoints((short) 14);
+        titleFont.setColor(IndexedColors.BLACK.index);
+
+        XSSFCellStyle titleStyle = wb.createCellStyle();
+        titleStyle.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+        titleStyle.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
+        titleStyle.setFillForegroundColor(new XSSFColor(new java.awt.Color(182, 184, 192)));
+        titleStyle.setFillPattern(XSSFCellStyle.SOLID_FOREGROUND);
+        titleStyle.setFont(titleFont);
+        setBorder(titleStyle, BorderStyle.THIN, new XSSFColor(new java.awt.Color(0, 0, 0)));
+
+        Row titleRow = sheet.createRow(rowIndex);
+        // titleRow.setHeightInPoints(25);
+        colIndex = 0;
+
+        for (Field field : fieldList) {
+            ExcelField excelAnnotation = field.getAnnotation(ExcelField.class); //获取指定类型注解
+            String[] columnNameArr  = excelAnnotation.columnName();
+            for (int i = 0 ; i < columnNameArr.length; i++){
+                Cell cell = titleRow.createCell(colIndex);
+                if(excelAnnotation.columnWidth()!=0){
+                    sheet.setColumnWidth(colIndex, excelAnnotation.columnWidth());
+                }
+                cell.setCellValue(columnNameArr[i]);
+                cell.setCellStyle(titleStyle);
+                colIndex++;
+            }
+        }
+
+        rowIndex++;
+        return rowIndex;
+    }
+
+    /**
+     * 写内容
+     * @param wb
+     * @param sheet
+     * @param data
+     * @param fieldList
+     * @param rowIndex
+     * @param <T>
+     * @return
+     */
+    private static <T> int writeRowsToExcel(XSSFWorkbook wb, Sheet sheet, List<T> data,List<Field> fieldList, Class<T> clazz, int rowIndex) throws Exception {
+        int colIndex = 0;
+
+        Font dataFont = wb.createFont();
+        dataFont.setFontName("simsun");
+        // dataFont.setFontHeightInPoints((short) 14);
+        dataFont.setColor(IndexedColors.BLACK.index);
+
+        XSSFCellStyle dataStyle = wb.createCellStyle();
+        dataStyle.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+        dataStyle.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
+        dataStyle.setFont(dataFont);
+        setBorder(dataStyle, BorderStyle.THIN, new XSSFColor(new java.awt.Color(0, 0, 0)));
+
+        for (T entity : data) {
+            Row dataRow = sheet.createRow(rowIndex);
+            // dataRow.setHeightInPoints(25);
+            colIndex = 0;
+            //获取合并单元格信息
+            List<MergeColumn> mergeColumnList = null;
+            PropertyDescriptor pd = new PropertyDescriptor("mergeColumnList", clazz);
+            Method getMethod = pd.getReadMethod();
+            if (getMethod.invoke(entity) != null) {
+                mergeColumnList = (List)getMethod.invoke(entity);
+            }
+            for (Field field : fieldList) {
+                ExcelField excelAnnotation = field.getAnnotation(ExcelField.class); //获取指定类型注解
+                //获取字段数组
+                String[] columnNameArr = excelAnnotation.columnName();
+                for (int i = 0 ; i < columnNameArr.length; i++) {
+                    String fieldName = field.getName();
+                    System.err.println(fieldName);
+                    Object entityValue = null;
+                    pd = new PropertyDescriptor(fieldName, clazz);
+                    getMethod = pd.getReadMethod();
+                    if (getMethod.invoke(entity) != null) {
+                        entityValue = getMethod.invoke(entity);
+                    }
+                    Cell cell = dataRow.createCell(colIndex);
+                    String value;
+
+                    if(excelAnnotation.isRowMerger()){
+                        if(mergeColumnList != null){
+                            for (MergeColumn mergeColumn : mergeColumnList) {
+                                if(field.getName().equals(mergeColumn.getColumn())){
+                                    //MergeCount的数量包括当前行，与html rowspan使用方式一样
+                                    sheet.addMergedRegion(new CellRangeAddress(rowIndex, rowIndex+mergeColumn.getMergeCount()-1,colIndex,colIndex));
+                                }
+                            }
+                        }
+                    }
+                    if(excelAnnotation.isColMerger()){
+                        if(mergeColumnList != null){
+                            for (MergeColumn mergeColumn : mergeColumnList) {
+                                if(field.getName().equals(mergeColumn.getColumn())){
+                                    //MergeCount的数量包括当前行，与html rowspan使用方式一样
+                                    sheet.addMergedRegion(new CellRangeAddress(rowIndex, rowIndex,colIndex,colIndex+mergeColumn.getMergeCount()-1));
+                                }
+                            }
+                        }
+                    }
+                    if (excelAnnotation.isDate()) {
+                        if(entityValue != null && Long.parseLong(entityValue.toString())!=0){
+                            String fomate = excelAnnotation.fomat();
+                            SimpleDateFormat f = new SimpleDateFormat(fomate);
+                            value = f.format(new Date(Long.parseLong(entityValue.toString())));
+                            cell.setCellValue(value);
+                        }
+                    }else if (excelAnnotation.isNum()
+                            && (entityValue != null && !"".equals(entityValue.toString().trim()))) {
+                        cell.setCellValue(new BigDecimal(entityValue.toString()).setScale(2,BigDecimal.ROUND_HALF_UP).toString());
+                    }else if(excelAnnotation.isInteger()
+                            && (entityValue != null && !"".equals(entityValue.toString().trim()))){
+                        cell.setCellValue(Integer.parseInt(entityValue.toString()));
+                    }else {
+                        if (entityValue != null) {
+                            cell.setCellValue(entityValue.toString());
+                        } else {
+                            cell.setCellValue("");
+                        }
+                        value = entityValue.toString();
+                        cell.setCellValue(value);
+                    }
+                    cell.setCellStyle(dataStyle);
+                    colIndex++;
+                }
+            }
+            rowIndex++;
+        }
+        return rowIndex;
+    }
+
+    private static void autoSizeColumns(Sheet sheet, int columnNumber) {
+
+        for (int i = 0; i < columnNumber; i++) {
+            int orgWidth = sheet.getColumnWidth(i);
+            sheet.autoSizeColumn(i, true);
+            int newWidth = (int) (sheet.getColumnWidth(i) + 100);
+            if (newWidth > orgWidth) {
+                sheet.setColumnWidth(i, newWidth);
+            } else {
+                sheet.setColumnWidth(i, orgWidth);
+            }
+        }
+    }
+
+    private static void setBorder(XSSFCellStyle style, BorderStyle border, XSSFColor color) {
+        style.setBorderTop(border);
+        style.setBorderLeft(border);
+        style.setBorderRight(border);
+        style.setBorderBottom(border);
+        style.setBorderColor(XSSFCellBorder.BorderSide.TOP, color);
+        style.setBorderColor(XSSFCellBorder.BorderSide.LEFT, color);
+        style.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, color);
+        style.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, color);
     }
 }
