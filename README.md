@@ -3,6 +3,12 @@
 #### 介绍
 excel工具
 
+1.0版本
+
+----------
+	
+	1.0版本需要自己组织数据，我们把要导出的数据封装成list，list中的一个对象对应一条excel，如果有合并单元格的情况下,需要将合并的数据也组织好，比如要合并三行，第一行写合并的属性了，下面两行就不可以再写合并的属性（MergeColumnList）。不然会报错。
+
 #### 使用说明
 excel.json配置相关的读取参数，如果不填则使用系统默认参数
 
@@ -79,6 +85,8 @@ Excel 为主工具类
 		 */
 		int columnWidth() default 0 * 256;
 
+		boolean isObject() default false;
+
 3. 如果有需要合并单元格，则需要将合并的字段和合并单元格的数量包装到MergeColumn对象里，然后放入MergeColumnList集合中。
 
 4. 导入、导出时会根据字段上的注解读取属性的值，例如
@@ -121,7 +129,7 @@ Excel 为主工具类
 
 
 
-#####导人使用示例
+#####导入使用示例
 
 1. 将注解上的columnName对应上excel中的title.@ExcelField(columnName="单元")
 
@@ -129,5 +137,19 @@ Excel 为主工具类
 		
 		FileInputStream is = new FileInputStream("F:\\test.xlsx");
 		List<SysCommunityInfo> sysCommunityInfoList = Excel.readExcelToList("文件名",输入流,SysCommunityInfo.class);
+
+
+2.0版本
+
+----------
+2.0版本主要更新了导出功能，导入功能与原来一样使用
+
+2.0新增加的注解属性 `isObject`
+
+导出功能不用自己再组织数据格式，拿到要导出的集合以后，直接调用Excel.exportExcel()方法即可。直接将要导出的列上添加注解。如果有其他对象中的属性要导出，则在该对象上添加注解`@ExcelField(isObject=true)`，然后在该对象的属性上添加注解。如果合并单元格，则需要在合并单元格的字段上添加`isRowMerger`注解属性即可。不用再考虑哪一行合并，工具类会根据数据情况自动合并单元格。
+
+
+列合并目前还没有完成，后续更新
+
 
 。。。后续更新
