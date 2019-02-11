@@ -6,7 +6,7 @@
 
     <groupId>com.github.panlicun</groupId>
     <artifactId>poi-plus</artifactId>
-    <version>1.0</version>
+    <version>2.0</version>
 
 
 
@@ -18,7 +18,7 @@
 
     <name>poi-plus</name>
     <description>excel-util</description>
-    <url>https://github.com/panlicun/poi-plus</url>
+    <url>https://github.com/panlicun/poi-plus-2.0</url>
 
     <licenses>
        <license>
@@ -33,14 +33,14 @@
             <name>panlicun</name>
             <email>63105408@qq.com</email>
             <organization>panlicun</organization>
-            <url>https://github.com/panlicun/poi-plus</url>
+            <url>https://github.com/panlicun/poi-plus-2.0</url>
         </developer>
     </developers>
 
     <scm>
-        <connection>scm:git:git@gitee.com:sunchenbin/mybatis-enhance.git</connection>
+        <connection>scm:git:git@github.com:panlicun/poi-plus-2.0.git</connection>
         <developerConnection>scm:git:https://github.com/panlicun/poi-plus</developerConnection>
-        <url>https://github.com/panlicun/poi-plus</url>
+        <url>https://github.com/panlicun/poi-plus-2.0</url>
         <tag>1.0</tag>
     </scm>
     <distributionManagement>

@@ -11,13 +11,13 @@ public @interface ExcelField {
 	 * 对应的列名（在excel中对应的列名）
 	 * @return
 	 */
-	String[] columnName();
+	String[] columnName() default {};
 
 	/**
 	 * 排序
 	 * @return
 	 */
-	int order() default  0;
+	int order() default 100;
 
 	/**
 	 * 是否是日期
@@ -66,6 +66,8 @@ public @interface ExcelField {
 	 * 列宽
 	 */
 	int columnWidth() default 0 * 256;
+
+	boolean isObject() default false;
 
 
 }
