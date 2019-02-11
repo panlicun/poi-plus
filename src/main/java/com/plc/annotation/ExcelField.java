@@ -67,6 +67,10 @@ public @interface ExcelField {
 	 */
 	int columnWidth() default 0 * 256;
 
+	/**
+	 * 是否是对象
+	 * @return
+	 */
 	boolean isObject() default false;
 
 
