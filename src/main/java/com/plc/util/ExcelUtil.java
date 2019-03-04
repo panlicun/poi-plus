@@ -301,12 +301,25 @@ public class ExcelUtil {
 
     //-------------------------------导出---------------------------------
 
+    public static <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz,ExcelStyle excelStyle) throws Exception {
+
+        int rowIndex = 0;
+        //获取排序后的字段
+        List<Field> fieldList = getFieldListBySort(clazz);
+        rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelStyle);
+        writeRowsToExcel(wb, sheet, data,fieldList,clazz,rowIndex);
+        autoSizeColumns(sheet, data.size() + 1);
+
+    }
+
     public static <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz) throws Exception {
 
         int rowIndex = 0;
         //获取排序后的字段
         List<Field> fieldList = getFieldListBySort(clazz);
-        rowIndex = writeTitlesToExcel(wb, sheet, fieldList);
+        //获取Excel样式
+        ExcelStyle excelStyle = new ExcelStyle();
+        rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelStyle);
         writeRowsToExcel(wb, sheet, data,fieldList,clazz,rowIndex);
         autoSizeColumns(sheet, data.size() + 1);
 
@@ -340,23 +353,12 @@ public class ExcelUtil {
      * @param fieldList
      * @return
      */
-    private static int writeTitlesToExcel(XSSFWorkbook wb, Sheet sheet, List<Field> fieldList) {
+    private static int writeTitlesToExcel(XSSFWorkbook wb, Sheet sheet, List<Field> fieldList,ExcelStyle excelStyle) {
         int rowIndex = 0;
         int colIndex = 0;
 
-        Font titleFont = wb.createFont();
-        titleFont.setFontName("simsun");
-        titleFont.setBold(true);
-        // titleFont.setFontHeightInPoints((short) 14);
-        titleFont.setColor(IndexedColors.BLACK.index);
-
-        XSSFCellStyle titleStyle = wb.createCellStyle();
-        titleStyle.setAlignment(XSSFCellStyle.ALIGN_CENTER);
-        titleStyle.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
-        titleStyle.setFillForegroundColor(new XSSFColor(new java.awt.Color(182, 184, 192)));
-        titleStyle.setFillPattern(XSSFCellStyle.SOLID_FOREGROUND);
-        titleStyle.setFont(titleFont);
-        setBorder(titleStyle, BorderStyle.THIN, new XSSFColor(new java.awt.Color(0, 0, 0)));
+        //获取表头的样式
+        XSSFCellStyle titleStyle = excelStyle.setTitleStyle(wb);
 
         Row titleRow = sheet.createRow(rowIndex);
         // titleRow.setHeightInPoints(25);

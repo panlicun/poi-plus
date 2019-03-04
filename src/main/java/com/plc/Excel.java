@@ -1,7 +1,7 @@
 package com.plc;
 
 import com.plc.config.ExcelConfig;
-import com.plc.constant.Constant;
+import com.plc.util.ExcelStyle;
 import com.plc.util.ExcelUtil;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -75,12 +75,36 @@ public class Excel<T> {
         return lists;
     }
 
+    public static <T> void exportExcel(HttpServletResponse response, String fileName, Map<String, Map<Class, List>> data, ExcelStyle excelStyle) throws Exception {
+        // 告诉浏览器用什么软件可以打开此文件
+        response.setHeader("content-Type", "application/vnd.ms-excel");
+        // 下载文件的默认名称
+        response.setHeader("Content-Disposition", "attachment;filename="+ URLEncoder.encode(fileName, "utf-8"));
+        exportExcel(data, response.getOutputStream(),excelStyle);
+    }
+
     public static <T> void exportExcel(HttpServletResponse response, String fileName, Map<String, Map<Class, List>> data) throws Exception {
         // 告诉浏览器用什么软件可以打开此文件
         response.setHeader("content-Type", "application/vnd.ms-excel");
         // 下载文件的默认名称
         response.setHeader("Content-Disposition", "attachment;filename="+ URLEncoder.encode(fileName, "utf-8"));
         exportExcel(data, response.getOutputStream());
+    }
+
+    public static <T> void exportExcel(Map<String, Map<Class, List>> data, OutputStream out, ExcelStyle excelStyle) throws Exception {
+        XSSFWorkbook wb = new XSSFWorkbook();
+        try {
+            for (String key : data.keySet()) {
+                String sheetName = key;
+                XSSFSheet sheet = wb.createSheet(sheetName);
+                for (Class clazz : data.get(key).keySet()) {
+                    ExcelUtil.writeExcel(wb, sheet, data.get(key).get(clazz),clazz,excelStyle);
+                }
+            }
+            wb.write(out);
+        } finally {
+            wb.close();
+        }
     }
 
     public static <T> void exportExcel(Map<String, Map<Class, List>> data, OutputStream out) throws Exception {
