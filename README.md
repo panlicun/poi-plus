@@ -306,9 +306,9 @@ Excel 为主工具类
 
 ###新增功能
 
-可以自定义表头样式，使用如下
+可以自定义样式，使用如下
 
-	继承ExcelStyle类，并且重写setTitleStyle方法。然后将自定义样式的类的对象传到方法中
+	继承ExcelStyle类，并且重写setTitleStyle或setDataStyle方法。然后将自定义样式的类的对象传到方法中
 
 	ExcelStyle excelStyle = new MyStyle();
 	Excel.exportExcel(response,"hello.xls",mapData,excelStyle);
