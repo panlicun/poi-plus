@@ -307,7 +307,7 @@ public class ExcelUtil {
         //获取排序后的字段
         List<Field> fieldList = getFieldListBySort(clazz);
         rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelStyle);
-        writeRowsToExcel(wb, sheet, data,fieldList,clazz,rowIndex);
+        writeRowsToExcel(wb, sheet, data,fieldList,clazz,excelStyle,rowIndex);
         autoSizeColumns(sheet, data.size() + 1);
 
     }
@@ -320,7 +320,7 @@ public class ExcelUtil {
         //获取Excel样式
         ExcelStyle excelStyle = new ExcelStyle();
         rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelStyle);
-        writeRowsToExcel(wb, sheet, data,fieldList,clazz,rowIndex);
+        writeRowsToExcel(wb, sheet, data,fieldList,clazz,excelStyle,rowIndex);
         autoSizeColumns(sheet, data.size() + 1);
 
     }
@@ -394,20 +394,12 @@ public class ExcelUtil {
      * @return
      */
     private static <T> int writeRowsToExcel(XSSFWorkbook wb, Sheet sheet, List<T> data, List<Field> fieldList,
-                                            Class<T> clazz, int
+                                            Class<T> clazz,ExcelStyle excelStyle, int
                                                     rowIndex) throws Exception {
         int colIndex = 0;
 
-        Font dataFont = wb.createFont();
-        dataFont.setFontName("simsun");
-        // dataFont.setFontHeightInPoints((short) 14);
-        dataFont.setColor(IndexedColors.BLACK.index);
-
-        XSSFCellStyle dataStyle = wb.createCellStyle();
-        dataStyle.setAlignment(XSSFCellStyle.ALIGN_CENTER);
-        dataStyle.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
-        dataStyle.setFont(dataFont);
-        setBorder(dataStyle, BorderStyle.THIN, new XSSFColor(new java.awt.Color(0, 0, 0)));
+        //设置数据的样式
+        XSSFCellStyle dataStyle = excelStyle.setDataStyle(wb);
 
 
         //存放合并单元格信息

@@ -27,6 +27,20 @@ public class ExcelStyle {
         return titleStyle;
     }
 
+    public XSSFCellStyle setDataStyle(XSSFWorkbook wb){
+        Font dataFont = wb.createFont();
+        dataFont.setFontName("simsun");
+        // dataFont.setFontHeightInPoints((short) 14);
+        dataFont.setColor(IndexedColors.BLACK.index);
+
+        XSSFCellStyle dataStyle = wb.createCellStyle();
+        dataStyle.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+        dataStyle.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
+        dataStyle.setFont(dataFont);
+        setBorder(dataStyle, BorderStyle.THIN, new XSSFColor(new java.awt.Color(0, 0, 0)));
+        return dataStyle;
+    }
+
     private static void setBorder(XSSFCellStyle style, BorderStyle border, XSSFColor color) {
         style.setBorderTop(border);
         style.setBorderLeft(border);
