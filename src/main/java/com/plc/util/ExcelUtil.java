@@ -1,30 +1,25 @@
 package com.plc.util;
 
-import com.alibaba.fastjson.JSON;
 import com.plc.annotation.ExcelField;
 import com.plc.config.ExcelConfig;
-import com.plc.constant.Constant;
+import com.plc.model.ExcelCustomData;
 import com.plc.model.MergeColumn;
 import org.apache.commons.beanutils.ConvertUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFDataFormat;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.usermodel.Color;
-import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.RegionUtil;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.extensions.XSSFCellBorder;
 
-import java.awt.*;
 import java.beans.PropertyDescriptor;
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.*;
 import java.math.BigDecimal;
-import java.net.URL;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -35,33 +30,6 @@ import java.util.List;
  */
 public class ExcelUtil {
 
-    public static ExcelConfig getExcelConfig(String excelFileName) throws IOException{
-        ClassLoader classLoader = ExcelUtil.class.getClassLoader();
-        /**
-         getResource()方法会去classpath下找这个文件，获取到url resource, 得到这个资源后，调用url.getFile获取到 文件 的绝对路径
-         */
-        URL url = classLoader.getResource(Constant.FILENAME);
-        ExcelConfig excelConfig = new ExcelConfig();
-        if(null != url){
-            File file = new File(url.getFile());
-            String content= FileUtils.readFileToString(file,"UTF-8");
-            Map maps = (Map) JSON.parse(content);
-            if(null != maps){
-                Map property = (Map) maps.get(excelFileName);
-                if(null != property){
-                    if(property.get("readStartRow") != null){
-                        excelConfig.setReadStartRow(Integer.parseInt(property.get("readStartRow").toString()));
-                    }
-                    if(property.get("readTitleRow") != null){
-                        excelConfig.setReadTitleRow(Integer.parseInt(property.get("readTitleRow").toString()));
-                    }
-                }
-            }
-        }
-        return excelConfig;
-    }
-
-
     /**
      * 将读出的数据转成实体属性
      * @param rs
@@ -69,7 +37,7 @@ public class ExcelUtil {
      * @return
      * @throws Exception
      */
-    public static <T> T columnToField(Map<String,Object> rs, Class<T> clazz) throws Exception{
+    public <T> T columnToField(Map<String,Object> rs, Class<T> clazz) throws Exception{
         //获取每行的数据的map  title->数据
         //根据title去实体类中寻找对应的字段，并把赋值
         //先找到对应的字段
@@ -109,7 +77,7 @@ public class ExcelUtil {
      * @param cellValue
      * @return
      */
-    public static Map<String, Object> setStandardData(Map<Integer, Object> titleMap,
+    public Map<String, Object> setStandardData(Map<Integer, Object> titleMap,
                                                 Integer index, String cellValue) {
         Map<String, Object> temp = new HashMap<>();
         String field = (String) titleMap.get(index);
@@ -126,7 +94,7 @@ public class ExcelUtil {
      * @param sheet
      * @return
      */
-    public static List<CellRangeAddress> getCombineCell(Sheet sheet) {
+    public List<CellRangeAddress> getCombineCell(Sheet sheet) {
         List<CellRangeAddress> list = new ArrayList<CellRangeAddress>();
         // 获得一个 sheet 中合并单元格的数量
         int sheetmergerCount = sheet.getNumMergedRegions();
@@ -147,7 +115,7 @@ public class ExcelUtil {
      * @param cell
      * @return
      */
-    public static String getCellValue(Cell cell) {
+    public String getCellValue(Cell cell) {
         if (cell == null) {
             return "";
         }
@@ -224,7 +192,7 @@ public class ExcelUtil {
      *            sheet
      * @return
      */
-    public static String isCombineCell(List<CellRangeAddress> listCombineCell, Cell cell, Sheet sheet)
+    public String isCombineCell(List<CellRangeAddress> listCombineCell, Cell cell, Sheet sheet)
             throws Exception {
         int firstC = 0;
         int lastC = 0;
@@ -257,7 +225,7 @@ public class ExcelUtil {
      * @param c
      * @return
      */
-    public static Field getField(String value, Class c) {
+    public Field getField(String value, Class c) {
         Field[] declaredFields = c.getDeclaredFields();
         Field field = null;
         for (Field f : declaredFields) {
@@ -282,7 +250,7 @@ public class ExcelUtil {
      * @param column
      * @return
      */
-    public static boolean isMergedRegion(Sheet sheet, int row, int column) {
+    public boolean isMergedRegion(Sheet sheet, int row, int column) {
         int sheetMergeCount = sheet.getNumMergedRegions();
         for (int i = 0; i < sheetMergeCount; i++) {
             CellRangeAddress range = sheet.getMergedRegion(i);
@@ -301,32 +269,35 @@ public class ExcelUtil {
 
     //-------------------------------导出---------------------------------
 
-    public static <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz,ExcelStyle excelStyle) throws Exception {
+    public <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz,ExcelConfig excelConfig,ExcelStyle excelStyle) throws Exception {
 
-        int rowIndex = 0;
+        int rowIndex = excelConfig.getWriteStartRow();
+        //读取excel配置文件内自定义和合并单元格
+        writeCustomExcelData(wb,sheet,excelConfig,excelStyle);
+
         //获取排序后的字段
         List<Field> fieldList = getFieldListBySort(clazz);
-        rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelStyle);
+        rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelConfig,excelStyle);
         writeRowsToExcel(wb, sheet, data,fieldList,clazz,excelStyle,rowIndex);
         autoSizeColumns(sheet, data.size() + 1);
 
     }
 
-    public static <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz) throws Exception {
+    public <T> void writeExcel(XSSFWorkbook wb, Sheet sheet, List<T> data , Class<T> clazz,ExcelConfig excelConfig) throws Exception {
 
-        int rowIndex = 0;
+        int rowIndex = excelConfig.getWriteStartRow();
         //获取排序后的字段
         List<Field> fieldList = getFieldListBySort(clazz);
         //获取Excel样式
         ExcelStyle excelStyle = new ExcelStyle();
-        rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelStyle);
+        rowIndex = writeTitlesToExcel(wb, sheet, fieldList,excelConfig,excelStyle);
         writeRowsToExcel(wb, sheet, data,fieldList,clazz,excelStyle,rowIndex);
         autoSizeColumns(sheet, data.size() + 1);
 
     }
 
     //获取排序后的字段
-    public static <T> List<Field> getFieldListBySort(Class<T> classz) throws Exception {
+    public <T> List<Field> getFieldListBySort(Class<T> classz) throws Exception {
         List<Field> fieldList = new ArrayList<>();
         getAnnotationFields(fieldList, classz);
         for (int i = 0; i < fieldList.size(); i++) {
@@ -353,9 +324,9 @@ public class ExcelUtil {
      * @param fieldList
      * @return
      */
-    private static int writeTitlesToExcel(XSSFWorkbook wb, Sheet sheet, List<Field> fieldList,ExcelStyle excelStyle) {
-        int rowIndex = 0;
-        int colIndex = 0;
+    private int writeTitlesToExcel(XSSFWorkbook wb, Sheet sheet, List<Field> fieldList,ExcelConfig excelConfig,ExcelStyle excelStyle) {
+        int rowIndex = excelConfig.getWriteStartRow();
+        int colIndex = excelConfig.getWriteStartCol();
 
         //获取表头的样式
         XSSFCellStyle titleStyle = excelStyle.setTitleStyle(wb);
@@ -393,7 +364,7 @@ public class ExcelUtil {
      * @param <T>
      * @return
      */
-    private static <T> int writeRowsToExcel(XSSFWorkbook wb, Sheet sheet, List<T> data, List<Field> fieldList,
+    private <T> int writeRowsToExcel(XSSFWorkbook wb, Sheet sheet, List<T> data, List<Field> fieldList,
                                             Class<T> clazz,ExcelStyle excelStyle, int
                                                     rowIndex) throws Exception {
         int colIndex = 0;
@@ -498,7 +469,7 @@ public class ExcelUtil {
      * @param <T>
      * @return
      */
-    private static <T> List<MergeColumn> getMergeColumn(List<Map<String, Object>> resultList) {
+    private <T> List<MergeColumn> getMergeColumn(List<Map<String, Object>> resultList) {
         List<MergeColumn> mergeColumnList = new ArrayList<>();
         //临时变量，存放每个字段出现的次数
         Map<String, Integer> m = new HashMap<>();
@@ -529,7 +500,7 @@ public class ExcelUtil {
         return mergeColumnList;
     }
 
-    private static <T> void analysisData(Map<String, Object> paramMap, List<Map<String, Object>> resultList, List<Field> fieldList, T t, Class
+    private <T> void analysisData(Map<String, Object> paramMap, List<Map<String, Object>> resultList, List<Field> fieldList, T t, Class
             clazz, int currentLevel) throws Exception {
         //总层数
         int totalLevel = 0;
@@ -596,7 +567,7 @@ public class ExcelUtil {
         }
     }
 
-    private static void getAnnotationFields(List<Field> fieldList, Class classz) throws Exception {
+    private void getAnnotationFields(List<Field> fieldList, Class classz) throws Exception {
         Field[] fields = classz.getDeclaredFields();
         AccessibleObject.setAccessible(fields, true);
         for (Field field : fields) {
@@ -627,7 +598,7 @@ public class ExcelUtil {
         }
     }
 
-    private static boolean isBaseType(Field f) {
+    private boolean isBaseType(Field f) {
         String[] types = {"java.lang.Integer",
                 "java.lang.Double",
                 "java.lang.Float",
@@ -646,7 +617,7 @@ public class ExcelUtil {
         return false;
     }
 
-    private static void autoSizeColumns(Sheet sheet, int columnNumber) {
+    private void autoSizeColumns(Sheet sheet, int columnNumber) {
 
         for (int i = 0; i < columnNumber; i++) {
             int orgWidth = sheet.getColumnWidth(i);
@@ -660,14 +631,24 @@ public class ExcelUtil {
         }
     }
 
-    private static void setBorder(XSSFCellStyle style, BorderStyle border, XSSFColor color) {
-        style.setBorderTop(border);
-        style.setBorderLeft(border);
-        style.setBorderRight(border);
-        style.setBorderBottom(border);
-        style.setBorderColor(XSSFCellBorder.BorderSide.TOP, color);
-        style.setBorderColor(XSSFCellBorder.BorderSide.LEFT, color);
-        style.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, color);
-        style.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, color);
+    private void writeCustomExcelData(XSSFWorkbook wb,Sheet sheet,ExcelConfig excelConfig,ExcelStyle excelStyle){
+        List<ExcelCustomData> excelCustomDatas = excelConfig.getExcelCustomDatas();
+        if(null != excelCustomDatas){
+            for (ExcelCustomData excelCustomData : excelCustomDatas) {
+                CellRangeAddress cellRangeAddress = excelCustomData.getCellRangeAddress();
+                sheet.addMergedRegion(cellRangeAddress);
+                Row dataRow = sheet.createRow(cellRangeAddress.getFirstRow());
+                Cell cell = dataRow.createCell(cellRangeAddress.getFirstColumn());
+                cell.setCellValue(excelCustomData.getExcelText());
+                XSSFCellStyle cellStyle = excelStyle.getDetailStyle(wb);
+                cell.setCellStyle(cellStyle);
+                // 使用RegionUtil类为合并后的单元格添加边框
+                RegionUtil.setBorderBottom(1, cellRangeAddress, sheet); // 下边框
+                RegionUtil.setBorderLeft(1, cellRangeAddress, sheet); // 左边框
+                RegionUtil.setBorderRight(1, cellRangeAddress, sheet); // 有边框
+                RegionUtil.setBorderTop(1, cellRangeAddress, sheet); // 上边框
+            }
+        }
     }
+
 }

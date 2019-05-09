@@ -41,7 +41,23 @@ public class ExcelStyle {
         return dataStyle;
     }
 
-    private static void setBorder(XSSFCellStyle style, BorderStyle border, XSSFColor color) {
+
+    public XSSFCellStyle getDetailStyle(XSSFWorkbook wb){
+        Font titleFont = wb.createFont();
+        titleFont.setFontName("simsun");
+        titleFont.setBold(true);
+        titleFont.setColor(IndexedColors.BLACK.index);
+        XSSFCellStyle detailStyle = wb.createCellStyle();
+        detailStyle.setAlignment(XSSFCellStyle.ALIGN_CENTER);
+        detailStyle.setVerticalAlignment(XSSFCellStyle.VERTICAL_CENTER);
+        detailStyle.setFillForegroundColor(new XSSFColor(new java.awt.Color(182, 184, 192)));
+        detailStyle.setFillPattern(XSSFCellStyle.SOLID_FOREGROUND);
+        detailStyle.setFont(titleFont);
+        setBorder(detailStyle, BorderStyle.THIN, new XSSFColor(new java.awt.Color(0, 0, 0)));
+        return detailStyle;
+    }
+
+    private void setBorder(XSSFCellStyle style, BorderStyle border, XSSFColor color) {
         style.setBorderTop(border);
         style.setBorderLeft(border);
         style.setBorderRight(border);
@@ -51,4 +67,5 @@ public class ExcelStyle {
         style.setBorderColor(XSSFCellBorder.BorderSide.RIGHT, color);
         style.setBorderColor(XSSFCellBorder.BorderSide.BOTTOM, color);
     }
+
 }

@@ -6,7 +6,7 @@
 
     <groupId>com.github.panlicun</groupId>
     <artifactId>poi-plus</artifactId>
-    <version>2.1</version>
+    <version>2.2</version>
 
 
 
@@ -41,7 +41,7 @@
         <connection>scm:git:git@github.com:panlicun/poi-plus.git</connection>
         <developerConnection>scm:git:https://github.com/panlicun/poi-plus</developerConnection>
         <url>https://github.com/panlicun/poi-plus</url>
-        <tag>2.1</tag>
+        <tag>2.2</tag>
     </scm>
     <distributionManagement>
         <snapshotRepository>
