@@ -3,14 +3,53 @@
 #### 介绍
 excel工具
 
-2.0版本
+----------
+2.2版本更新内容
+
+**1、去掉了excel.json配置文件的读取，改用通过ExcelConfig类进行相关的配置**
+	
+	导入功能
+	readExcelToList() 去掉了excelFileName参数
+	
+	
+
+**2、将原来的静态方法都修改成了对象的内部方法**
+
+**3、ExcelStyle不再通过方法传参的方式传入，改为通过Excel属性的方式传入**
+
+**4、新增了自定义单元格功能**
+
+	使用示例
+	
+	//创建样式类，继承ExcelStyle，重写自己需要的样式
+	ExcelStyle excelStyle = new MyStyle();
+	//创建配置对象
+    ExcelConfig excelConfig = new ExcelConfig();
+	//创建自定义数据，构造方法，参数1为单元格要显示的文字，参数二为要合并的单元格
+    ExcelCustomData excelCustomData = new ExcelCustomData("测试",new CellRangeAddress(0,0,0,4));
+    ExcelCustomData excelCustomData2 = new ExcelCustomData("测试",new CellRangeAddress(1,1,0,4));
+	//将自定义数据放入集合
+    List<ExcelCustomData> excelCustomDataList = new ArrayList<>();
+    excelCustomDataList.add(excelCustomData);
+    excelCustomDataList.add(excelCustomData2);
+	//将自定义数据放入配置文件
+    excelConfig.setExcelCustomDatas(excelCustomDataList);
+	//设置从哪行开始写入
+    excelConfig.setWriteStartRow(2);
+	//创建主类对象
+    Excel excel = new Excel();
+	//传入样式文件
+    excel.setExcelStyle(excelStyle);
+	//传入配置文件
+    excel.setExcelConfig(excelConfig);
+	//调用导出excel方法
+    excel.exportExcel(response,"hello.xls",mapData);
+
+**以上为新增功能**
 
 ----------
-2.0版本主要更新了导出功能，导入功能与原来一样使用
+**以下使用说明为之前版本的使用说明，请按上面最新使用方式使用，如果不明，请参考之前的版本使用说明**
 
-2.0新增加的注解属性 `isObject`
-
-导出功能不用自己再组织数据格式，拿到要导出的集合以后，直接调用Excel.exportExcel()方法即可。直接将要导出的列上添加注解。如果有其他对象中的属性要导出，则在该对象上添加注解`@ExcelField(isObject=true)`，然后在该对象的属性上添加注解。如果合并单元格，则需要在合并单元格的字段上添加`isRowMerger`注解属性即可。不用再考虑哪一行合并，工具类会根据数据情况自动合并单元格。
 
 #### 使用说明
 excel.json配置相关的读取参数，如果不填则使用系统默认参数
@@ -298,7 +337,7 @@ Excel 为主工具类
 2. 第一个参数表示文件名，第二个是输入流，第三个则是导出的集合的类型
 		
 		FileInputStream is = new FileInputStream("F:\\test.xlsx");
-		List<SysCommunityInfo> sysCommunityInfoList = Excel.readExcelToList("文件名",输入流,SysCommunityInfo.class);
+		List<SysCommunityInfo> sysCommunityInfoList = Excel.readExcelToList(输入流,SysCommunityInfo.class);
 
 
 
